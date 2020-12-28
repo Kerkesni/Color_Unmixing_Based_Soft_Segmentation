@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
     # Reading Image
     print('Reading Image...')
-    img = cv2.imread('assets/e.jpg')
+    img = cv2.imread('../assets/e.jpg')
     percent = 10
     width = int(img.shape[1] * percent / 100)
     height = int(img.shape[0] * percent / 100)
