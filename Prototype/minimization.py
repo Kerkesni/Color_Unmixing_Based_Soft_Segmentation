@@ -3,7 +3,7 @@ import sys
 import multiprocessing
 import numpy as np
 from scipy.spatial.distance import mahalanobis, euclidean
-#from scipy.optimize import fmin_cg
+# from scipy.optimize import fmin_cg as cg
 from optimize import fmin_cg
 import cv2
 import pickle
@@ -31,28 +31,16 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         print()
 
 # Helper Function that map [0, 255] to [0, 1]
-def translate(value, leftMin=0, leftMax=255, rightMin=0, rightMax=1):
-
-    if value > leftMax:
-        value = leftMax
-    if value < leftMin:
-        value = leftMin
-
-    # Figure out how 'wide' each range is
-    leftSpan = leftMax - leftMin
-    rightSpan = rightMax - rightMin
-
-    # Convert the left range into a 0-1 range (float)
-    valueScaled = float(value - leftMin) / float(leftSpan)
-
-    # Convert the 0-1 range into a value in the right range.
-    return rightMin + (valueScaled * rightSpan)
+def translate(value, reversed = False):
+    if not reversed:
+        return value /255
+    return np.rint(value*255)
 
 # Translate vector to range
-def translate_vec(v, leftMin=0, leftMax=1, rightMin=0, rightMax=255):
-    tmp = np.empty_like(v)
+def translate_vec(v, reversed = False):
+    tmp = np.empty_like(v, dtype=float)
     for index in range(len(v)):
-        tmp[index] = translate(v[index], leftMin, leftMax, rightMin, rightMax)
+        tmp[index] = translate(v[index], reversed)
     return tmp
 
 # Calculates Energy for a pixel
@@ -63,8 +51,7 @@ def EnergyFunction(x, distributions):
     F = 0
     for layer_index in range(len(a)):
         # Calculating mahalanobis distance
-        inv_cov = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        Di = mahalanobis(translate_vec(u[layer_index]), distributions[layer_index][0], inv_cov)
+        Di = mahalanobis(u[layer_index], translate_vec(distributions[layer_index][0]), distributions[layer_index][1])
         F += a[layer_index]*Di
 
     top = 0
@@ -102,7 +89,7 @@ def Gu(x, img_point, nb_dist):
 
 # Global Deviation Constraint
 def Gg(x, img_point, nb_dist):
-    img_point = translate_vec(img_point, 0, 255, 0, 1)
+    img_point = translate_vec(img_point)
     return np.append(Gu(x, img_point, nb_dist), Ga(x, nb_dist))
 
 # Returns initial alpha and color value for pixel
@@ -112,8 +99,8 @@ def get_intitial_x(img_pixel_color, distributions):
     color = np.array([])
     
     for index in range(len(distributions)):
-        inv_cov = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
-        Di = mahalanobis(img_pixel_color, distributions[index][0], inv_cov)
+        Di = mahalanobis(img_pixel_color, distributions[index][0], distributions[index][1])
+        Di += euclidean(img_pixel_color, distributions[index][0])
         dist.append(Di)
 
     best_fiting_distribution_index = np.argmin(dist)
@@ -122,10 +109,10 @@ def get_intitial_x(img_pixel_color, distributions):
     for index in range(len(distributions)):
         if index == best_fiting_distribution_index:
             alpha = np.append(alpha, 1)
-            color = np.append(color, translate_vec(img_pixel_color, 0, 255, 0, 1))
+            color = np.append(color, translate_vec(img_pixel_color))
         else:
             alpha = np.append(alpha, 0)
-            color = np.append(color, translate_vec(distributions[index][0], 0, 255, 0, 1))
+            color = np.append(color, translate_vec(distributions[index][0]))
 
     color = color.flatten()
     x = np.append(alpha, color)
@@ -136,8 +123,8 @@ def pixel_minimize_function(img_point, x, distributions):
     rho = 0.1
     lmbda = np.array([0.1, 0.1, 0.1, 0.1])
     beta = 10
-    epsilon = 0.25
-    sigma = 0.01
+    gamma = 0.25
+    eps = 0.01
 
     # Function Minimized Using Conjugated Gradient
     def funcToMinimize(x):
@@ -149,16 +136,17 @@ def pixel_minimize_function(img_point, x, distributions):
     Gk = Gg(x, img_point, len(distributions))
     while(True):
         # minimization
-        Xkpls1 = fmin_cg(funcToMinimize, x, disp=False)
-        #Xkpls1 = np.clip(Xkpls1, 0, 1)
-        if np.linalg.norm(Xkpls1-x) > sigma:
+        output = fmin_cg(funcToMinimize, x, disp=False, full_output=True)
+        Xkpls1 = output[0]
+
+        if np.linalg.norm(Xkpls1-x) <= eps:
+            return Xkpls1
+        else:
             x = Xkpls1
             Ggkpls1 = Gg(Xkpls1, img_point, len(distributions))
             lmbda = lmbda + rho * Ggkpls1
-            rho = beta*rho if np.linalg.norm(Ggkpls1) > epsilon*np.linalg.norm(Gk) else rho
+            rho = beta*rho if np.linalg.norm(Ggkpls1) > gamma*np.linalg.norm(Gk) else rho
             Gk = Ggkpls1
-        else:
-            return Xkpls1
 
 # Original Method of Multipliers per chunck of image
 def chunk_minimize_function(img, start_index, shared_color_layers, shared_alpha_layers, original_dim_color, original_dim_alpha, distributions):
@@ -190,8 +178,8 @@ if __name__ == "__main__":
 
     # Reading Image
     print('Reading Image...')
-    img = cv2.imread('../assets/e.jpg')
-    percent = 10
+    img = cv2.imread('../assets/m.jpg')
+    percent = 50
     width = int(img.shape[1] * percent / 100)
     height = int(img.shape[0] * percent / 100)
     dim = (width, height)
@@ -203,12 +191,12 @@ if __name__ == "__main__":
     distributions = pickle.load(data)
 
     ######################## Testing ##############################
-    # point = (5, 5)
+    # point = (10, 40)
     # x = get_intitial_x(img[point], distributions)
     # x_min = pixel_minimize_function(img[point], x, distributions)
 
-    # print(x)
-    # print(x_min)
+    # print(translate_vec(x, True))
+    # print(translate_vec(x_min, True))
 
     # Display pixel color
     # img_c = np.full((100, 100, 3), translate_vec(img[point]))
@@ -278,10 +266,10 @@ if __name__ == "__main__":
 
     # Translating values from [0, 1] to [0, 255]
     for i in range (len(color_layers)):
-        color_layers[i] = translate(color_layers[i], 0, 1, 0, 255)
+        color_layers[i] = translate(color_layers[i], True)
 
     for i in range (len(alpha_layers)):
-        alpha_layers[i] = translate(alpha_layers[i], 0, 1, 0, 255)
+        alpha_layers[i] = translate(alpha_layers[i], True)
 
     color_layers = color_layers.reshape(original_dim_color) 
     alpha_layers = alpha_layers.reshape(original_dim_alpha)

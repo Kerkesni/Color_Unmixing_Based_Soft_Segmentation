@@ -27,25 +27,6 @@ distributions = []
 representation_scores = []
 representation_threshold = 25
 
-# Helper Function that map [0, 255] to [0, 1]
-def translate(value, leftMin=0, leftMax=255, rightMin=0, rightMax=1):
-    # Figure out how 'wide' each range is
-    leftSpan = leftMax - leftMin
-    rightSpan = rightMax - rightMin
-
-    # Convert the left range into a 0-1 range (float)
-    valueScaled = float(value - leftMin) / float(leftSpan)
-
-    # Convert the 0-1 range into a value in the right range.
-    return rightMin + (valueScaled * rightSpan)
-
-# Translate vector to range
-def translate_vec(v, leftMin=0, leftMax=1, rightMin=0, rightMax=255):
-    tmp = np.empty_like(v)
-    for index in range(len(v)):
-        tmp[index] = translate(v[index], leftMin, leftMax, rightMin, rightMax)
-    return tmp
-
 # Returns Per Pixel Vote Results And Winner Bin
 def voteOnBin(img, gradient, representation_score, representation_threshold):
     # Voting on the bins
@@ -73,7 +54,7 @@ def voteOnBin(img, gradient, representation_score, representation_threshold):
     winner_bin = list(votes_per_bin.items())[0][0]
     return (winner_bin, votes, nb_votes)
 
-# Returns Pixels In Per Bin
+# Returns Pixels In a Bin
 def getPopularBinPixelCoords(votes, bin):
     # We Get All Pixels That Belong To The Bin
     coords = []
@@ -88,7 +69,7 @@ def getSeedPixel(img, votes, winner_bin, coords, gradient, size=10):
     # Getting The Next Seed Pixel
     scores = []
     for pixel in coords:
-        # 20x20 Kernel Limits
+        # 21x21 Kernel Limits
         lower_h = pixel[0]-size if pixel[0]-size >= 0 else 0 
         higher_h = pixel[0]+size if pixel[0]+size < img.shape[0] else img.shape[0]-1
 
@@ -108,7 +89,7 @@ def getSeedPixel(img, votes, winner_bin, coords, gradient, size=10):
     return seed_coords
 
 # Returns distribution parameters
-def estimateDistribution(img, seed_coords, size=3):
+def estimateDistribution(img, seed_coords, size=10):
     # Distribution Estimation
     lower_h = seed_coords[0]-size if seed_coords[0]-size >= 0 else 0
     higher_h = seed_coords[0]+size if seed_coords[0]-size < img.shape[0] else img.shape[0]-1
@@ -116,11 +97,23 @@ def estimateDistribution(img, seed_coords, size=3):
     lower_l = seed_coords[1]-size if seed_coords[1]-size >= 0 else 0
     higher_l = seed_coords[1]+size if seed_coords[1]+size < img.shape[1] else img.shape[1]-1
 
-    patch = img[lower_h:higher_h, lower_l:higher_l]
-    #dist_weights = guidedFilter(patch, patch, 20, 0.09)
+    patch = img[lower_h:higher_h, lower_l:higher_l].reshape(-1, 3)
 
-    mean_vector = np.mean(patch.reshape(-1, 3), axis=0)
-    covariance_matrix = np.cov(patch.reshape(-1, 3), rowvar=False, bias=True)
+    # Calculating mean and covariance matrix
+    covariance_matrix, mean_vector = cv2.calcCovarMatrix(patch, None, cv2.COVAR_ROWS | cv2.COVAR_SCALE | cv2.COVAR_NORMAL)
+
+    if np.sum(covariance_matrix) == 0:
+        covariance_matrix = np.array([
+            [0.1, 0.1, 0.1],
+            [0.1, 0.1, 0.1],
+            [0.1, 0.1, 0.1]
+        ])
+    else:
+        # Inverting Covariance Matrix
+        if np.linalg.cond(covariance_matrix) < 1/sys.float_info.epsilon:
+            covariance_matrix = np.linalg.inv(covariance_matrix)
+        else:
+            covariance_matrix = np.linalg.pinv(covariance_matrix)
 
     distribution = (mean_vector, covariance_matrix)
     return distribution
@@ -133,15 +126,8 @@ def getMahalanobis(img, distribution, representation_score, representation_thres
         for i in range(img.shape[1]):
             if(representation_score[j,i] < representation_threshold):
                 continue
-            # Inverting Covariance Matrix
-            if np.linalg.cond(distribution[1]) < 1/sys.float_info.epsilon:
-                inv_cov = np.linalg.inv(distribution[1])
-            else:
-                inv_cov = distribution[1]
             # Calculating mahalanobis distance
-            if np.sum(inv_cov) == 0:
-                inv_cov = np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
-            Di[j,i] = min(representation_score[j,i], mahalanobis(img[j,i], distribution[0], inv_cov))
+            Di[j,i] = min(representation_score[j,i], mahalanobis(img[j,i], distribution[0], distribution[1]))
     return Di
 
 # Estimating representation score
@@ -174,25 +160,9 @@ def estimateRepresentation(img, distributions, representation_score, start, fini
                     alpha1 = np.linalg.norm(img[j,i] - u1)/np.linalg.norm(u1-u2)
                     alpha2 = 1 - alpha1
 
-                    if np.linalg.cond(distributions[dist1][1]) < 1/sys.float_info.epsilon:
-                                inv_cov = np.linalg.inv(distributions[dist1][1])
-                    else:
-                        inv_cov = distributions[dist1][1]
+                    D1 = mahalanobis(u1, distributions[dist1][0], distributions[dist1][1])
 
-                    if np.sum(inv_cov) == 0:
-                        inv_cov = np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
-
-                    D1 = mahalanobis(u1, distributions[dist1][0], inv_cov)
-
-                    if np.linalg.cond(distributions[dist2][1]) < 1/sys.float_info.epsilon:
-                                inv_cov = np.linalg.inv(distributions[dist2][1])
-                    else:
-                        inv_cov = distributions[dist2][1]
-
-                    if np.sum(inv_cov) == 0:
-                        inv_cov = np.array([[0.1, 0.1, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
-
-                    D2 = mahalanobis(u2, distributions[dist2][0], inv_cov)
+                    D2 = mahalanobis(u2, distributions[dist2][0], distributions[dist2][1])
                     tmp_F = alpha1*D1 + alpha2*D2
 
                     rep_score[start+j,i] = min(tmp_F, rep_score[start+j,i], minDi[j,i])
@@ -202,12 +172,13 @@ if __name__ == '__main__':
 
     # Reading Image
     print('Reading Image...')
-    img = cv2.imread('../assets/e.jpg')
-    percent = 10
+    img = cv2.imread('../assets/m.jpg')
+    percent = 50
     width = int(img.shape[1] * percent / 100)
     height = int(img.shape[0] * percent / 100)
     img_dim = (width, height)
     img = cv2.resize(img, img_dim)
+    seeds_image = np.copy(img)
 
     cv2.imwrite('./res/original.jpg', img)
 
@@ -215,13 +186,6 @@ if __name__ == '__main__':
     print('Calculating Gradient...')
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     laplacian = cv2.Laplacian(img_gray,cv2.CV_64F)
-
-    # Initialization
-    # print('Translating image from [0, 255] to [0, 1]')
-    # img = img.astype('float') 
-    # for j in range(img.shape[0]):
-    #     for i in range(img.shape[1]):
-    #         img[j,i] = [translate(img[j,i][0]), translate(img[j,i][1]), translate(img[j,i][2])]
 
     print('Initializing Layers...')
     representation_scores.append(np.full((img.shape[0], img.shape[1], 1), 255, dtype=int))
@@ -289,6 +253,8 @@ if __name__ == '__main__':
         
         cv2.imwrite(f'./res/representation_score{iteration}.jpg', representation_score)
 
+        cv2.circle(seeds_image, seed_coords, 5, (0, 255, 0), -1)
+        cv2.imwrite(f'./res/seed{iteration}.jpg', seeds_image)
 
         first = False
         iteration += 1

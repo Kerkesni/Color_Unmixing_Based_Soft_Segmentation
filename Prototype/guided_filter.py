@@ -163,6 +163,8 @@ def guided_filter(I, p, r, eps, s=None):
     """
     if p.ndim == 2:
         p3 = p[:,:,np.newaxis]
+    else:
+        p3 = p
 
     out = np.zeros_like(p3)
     for ch in range(p3.shape[2]):

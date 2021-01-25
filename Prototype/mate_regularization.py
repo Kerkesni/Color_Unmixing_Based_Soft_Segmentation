@@ -1,57 +1,38 @@
 import numpy as np
 import pickle
 from guided_filter import guided_filter
+import cv2
 
 # Helper Function that map [0, 255] to [0, 1]
-def translate(value, leftMin=0, leftMax=255, rightMin=0, rightMax=1):
+def translate(value, reversed = False):
+    if not reversed:
+        return value /255
+    return np.rint(value*255)
 
-    if value > leftMax:
-        value = leftMax
-    if value < leftMin:
-        value = leftMin
+# Translate vector to range
+def translate_vec(v, reversed = False):
+    tmp = np.empty_like(v, dtype=float)
+    for index in range(len(v)):
+        tmp[index] = translate(v[index], reversed)
+    return tmp
 
-    # Figure out how 'wide' each range is
-    leftSpan = leftMax - leftMin
-    rightSpan = rightMax - rightMin
-
-    # Convert the left range into a 0-1 range (float)
-    valueScaled = float(value - leftMin) / float(leftSpan)
-
-    # Convert the 0-1 range into a value in the right range.
-    return rightMin + (valueScaled * rightSpan)
+nb_layers = 5
 
 # Reading Image
 print('Reading Image...')
-img = cv2.imread('assets/d.jpg')
-percent = 20
+img = cv2.imread('../assets/g.jpg')
+percent = 50
 width = int(img.shape[1] * percent / 100)
 height = int(img.shape[0] * percent / 100)
-dim = (height, width)
+dim = (width, height)
 img = cv2.resize(img, dim)
-
-# Retreiving layer's original shape
-print('retreiving shape...')
-shape = (img.shape[0], img.shape[1])
-
-# Loading Alpha Layer Values
-alpha_layers = pickle.load(open('./data/alpha_min.dat', 'rb'))
 
 # Guided Filter Params
 radius = 5
-epsilon = 0.0001
-######################
+epsilon = 0.005
 
-# Translating values
-for i in range (len(alpha_layers)):
-    alpha_layers[i] = translate(alpha_layers[i], 0, 1, 0, 255).astype(int)
-
-# reshaping to original shape
-alpha_layers = np.reshape(alpha_layers, shape)
-
-# Applying Guided Filter
-new_layers = np.empty_like(alpha_layers)
-for layer in alpha_layers:
-    filtered_layer = guided_filter(layer, layer, radius, epsilon)
-    new_layers = filtered_layer
-
-# TODO Normalize sum of alpha values for each pixel
+for layer_index in range(nb_layers):
+    path = f'res/layer{layer_index+1}.png'
+    layer = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    guided = cv2.GaussianBlur(layer, (3,3), 0)
+    cv2.imwrite(f"res/reg_{layer_index}.jpg", guided)

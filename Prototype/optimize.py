@@ -393,7 +393,7 @@ def _minimize_cg(fun, x0, args=(), jac=None, callback=None,
 
         # Cliping elements + setting gradient at boundaries to 0
         xk = clip(xk, 0, 1)
-        idxs = np.union1d(np.argwhere(xk >= 1), np.argwhere(xk <= 0))
+        idxs = np.union1d(np.argwhere(xk >= 0.999), np.argwhere(xk <= 0.001))
         for idx in idxs:
             gfk[idx] = 0
 

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <map>
 #include <fstream>
+#include "opencv2/core/optim.hpp"
 
 struct VotesData {
 	double winner_bin;
@@ -32,5 +33,15 @@ void SaveDistributionsToFile(std::vector<Distribution>& distributions, std::stri
 
 // Loads Distribution Vector from file
 std::vector<Distribution> LoadDistributionsFromFile(std::string path);
+
+// Method for translating floats into range
+float TranslateValueToRange(float value, bool reversed);
+
+// Method for translating pixel color values to range
+std::vector<double> TranslateColorVectorToRange(cv::Vec3d oldVec, bool reversed);
+std::vector<double> TranslateColorMatToRange(cv::Mat oldVec, bool reversed);
+
+// Clips matrix to range
+void clip(cv::Mat* mat, int min = 0, int max = 1);
 
 #endif

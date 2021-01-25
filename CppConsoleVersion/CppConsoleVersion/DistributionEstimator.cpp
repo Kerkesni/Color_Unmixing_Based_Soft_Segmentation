@@ -1,6 +1,6 @@
 #include "DistributionEstimator.h"
 
-DistributionEstimator *DistributionEstimator::instance = nullptr;
+DistributionEstimator* DistributionEstimator::instance = nullptr;
 
 DistributionEstimator::DistributionEstimator(cv::Mat * img, cv::Mat * gradient, cv::Mat* representation_score, int representation_threshold) :
 	img{ img }, gradient{ gradient }, representation_score{ representation_score }, representation_threshold{ representation_threshold }{

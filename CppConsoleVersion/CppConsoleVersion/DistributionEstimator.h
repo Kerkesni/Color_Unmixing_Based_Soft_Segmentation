@@ -43,7 +43,7 @@ public:
 	std::pair<int, int> GetSeedPixel(VotesData& votes_data, std::vector<std::pair<int, int>>& points_coords, int size = 10);
 
 	// Estimates Distribution
-	Distribution EstimateDistribution(std::pair<int, int>& seed_coords, int size = 5);
+	Distribution EstimateDistribution(std::pair<int, int>& seed_coords, int size = 3);
 
 	// Estimates The representation score
 	cv::Mat EstimateRepresentationScore(std::vector<Distribution>& distributions);
