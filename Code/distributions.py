@@ -1,12 +1,4 @@
-# Soft Color Segmentation Prorotype
-
-# The Algorithme is composed of three stages
-# 1. Color Unmixing
-# 2. Matte Regularisation
-# 3. Color Refinement
-
 import cv2
-from cv2.ximgproc import guidedFilter
 import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.spatial.distance import mahalanobis

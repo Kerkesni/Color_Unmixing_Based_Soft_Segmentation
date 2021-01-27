@@ -14,9 +14,11 @@ def translate_vec(v, reversed = False):
         tmp[index] = translate(v[index], reversed)
     return tmp
 
+data = open('./data/dist.dat', 'rb')
+distributions = pickle.load(data)
 
 root_folder = "res/ex8/"
-nb_layers = 4
+nb_layers = len(distributions)
 
 original_image = cv2.imread('../assets/m.jpg')
 percent = 50
@@ -28,7 +30,7 @@ original_image = cv2.resize(original_image, dim)
 reconstructed_image = np.zeros_like(original_image, dtype="float64")
 
 for layer_index in range(nb_layers):
-    path = f'{root_folder}layer{layer_index+1}.png'
+    path = f'{root_folder}layer{layer_index+1}_ref.png'
     layer = cv2.imread(path, cv2.IMREAD_UNCHANGED)
     for j in range(layer.shape[0]):
         for i in range(layer.shape[1]):
