@@ -17,7 +17,7 @@ Implementation of the article :
 - pickle
 
 ## Files
-- ``distributions.py`` : contains the code for <b>color model estimation</b>
-- ``minimization.py`` : contains the code <b>color unmixing</b>
-- ``mate_regulariaztion.py`` : contains the code <b>mate regularization</b>
-- ``color_refinement.py`` : contains the code <b>color re-estimation</b>
+- ``distributions.py`` : contains the code of <b>color model estimation</b> step
+- ``minimization.py`` : contains the code of <b>color unmixing</b> step
+- ``mate_regulariaztion.py`` : contains the code of <b>mate regularization</b> step
+- ``color_refinement.py`` : contains the code of <b>color re-estimation</b> step
