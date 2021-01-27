@@ -21,3 +21,4 @@ Implementation of the article :
 - ``minimization.py`` : contains the code of <b>color unmixing</b> step
 - ``mate_regulariaztion.py`` : contains the code of <b>mate regularization</b> step
 - ``color_refinement.py`` : contains the code of <b>color re-estimation</b> step
+- ``reconstruct.py`` : contains the code for reconstructing the original image from the resulting layers
