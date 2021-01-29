@@ -10,6 +10,7 @@ import threading
 import multiprocessing
 import concurrent.futures
 import pickle
+import argparse
 
 # Global Variables
 seeds = []
@@ -162,10 +163,19 @@ def estimateRepresentation(img, distributions, representation_score, start, fini
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Color Model Estimation')
+    parser.add_argument('image_path', type=str, nargs='?', help='image path')
+    parser.add_argument('quality', type=int, nargs='?', default=50, help='image quality level')
+    args = parser.parse_args()
+
+    if(len(sys.argv) < 1):
+        print("Not Enough Arguments")
+        exit(-1)
+
     # Reading Image
     print('Reading Image...')
-    img = cv2.imread('../assets/m.jpg')
-    percent = 50
+    img = cv2.imread(args.image_path)
+    percent = args.quality
     width = int(img.shape[1] * percent / 100)
     height = int(img.shape[0] * percent / 100)
     img_dim = (width, height)

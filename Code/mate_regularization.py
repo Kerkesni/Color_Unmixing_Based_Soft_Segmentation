@@ -2,6 +2,8 @@ import numpy as np
 import pickle
 from cv2.ximgproc import guidedFilter
 import cv2
+import argparse
+import sys
 
 # Helper Function that map [0, 255] to [0, 1]
 def translate(value, reversed = False):
@@ -19,12 +21,21 @@ def translate_vec(v, reversed = False):
 data = open('./data/dist.dat', 'rb')
 distributions = pickle.load(data)
 
-nb_layers = 4 #len(distributions)
+nb_layers = len(distributions)
+
+parser = argparse.ArgumentParser(description='Color Model Estimation')
+parser.add_argument('image_path', type=str, nargs='?', help='image path')
+parser.add_argument('quality', type=int, nargs='?', default=50, help='image quality level')
+args = parser.parse_args()
+
+if(len(sys.argv) < 1):
+    print("Not Enough Arguments")
+    exit(-1)
 
 # Reading Image
 print('Reading Image...')
-img = cv2.imread('../assets/m.jpg')
-percent = 50
+img = cv2.imread(args.image_path)
+percent = args.quality
 width = int(img.shape[1] * percent / 100)
 height = int(img.shape[0] * percent / 100)
 dim = (width, height)
