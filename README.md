@@ -21,3 +21,6 @@ Implementation of the article :
 - ``minimization.py`` : contains the code <b>color unmixing</b>
 - ``mate_regulariaztion.py`` : contains the code <b>mate regularization</b>
 - ``color_refinement.py`` : contains the code <b>color re-estimation</b>
+
+## Execute
+- Run the command ``python main.py`` while giving it an image path
