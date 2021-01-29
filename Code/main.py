@@ -11,6 +11,11 @@ if(len(sys.argv) < 1):
     print("Not Enough Arguments")
     exit(-1)
 
+name, extension = os.path.splitext(args.image_path)
+if extension != ".jpg" and extension != ".jpeg":
+    print("Only JPG files are supported")
+    exit(-1)
+
 print("Color Model Estimation")
 os.system(f"distributions.py {args.image_path} {args.quality}")
 print("Sparce Color Unmixing")
